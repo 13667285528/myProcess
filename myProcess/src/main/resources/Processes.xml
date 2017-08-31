@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- 流程的xml样式的初步设计的模板 -->
+<processes>
+	<process typeId="001">
+		<name>请假流程</name>
+		<iconUrl>src1</iconUrl>
+		<specialProcess>false</specialProcess>
+		<hasUsers>false</hasUsers>
+		<hasFile>false</hasFile>
+		<formUrl>../../processForm/leave.html</formUrl>
+		<transactions>
+			<transaction name="插入请假记录" classId="com.mdoa.personnel.dao.LeaveRecordDao"
+				method="insertLeaveRecord" paramType="com.mdoa.personnel.bo.LeaveRecordForm">
+			</transaction>
+			<transaction name="修改today表leave_flag" classId="com.mdoa.personnel.dao.ClockDao"
+				method="updateTodayForLeave" paramType="com.mdoa.personnel.bo.ProcessClockForm">
+			</transaction>
+			<transaction name="修改record表leave_flag" classId="com.mdoa.personnel.dao.ClockDao"
+				method="updateRecordForLeave" paramType="com.mdoa.personnel.bo.ProcessClockForm">
+			</transaction>
+		</transactions>
+	</process>
+	<process typeId="002">
+		<name>公出流程</name>
+		<iconUrl>src2</iconUrl>
+		<specialProcess>false</specialProcess>
+		<hasUsers>false</hasUsers>
+		<hasFile>false</hasFile>
+		<formUrl>../../processForm/outBusiness.html</formUrl>
+		<transactions>
+			<transaction name="插入公出记录" classId="com.mdoa.personnel.dao.OutBusinessRecordDao"
+				method="insertOutBusinessRecord" paramType="com.mdoa.personnel.bo.OutBusinessRecordForm">
+			</transaction>
+			<transaction name="修改today表leave_flag" classId="com.mdoa.personnel.dao.ClockDao"
+				method="updateTodayForOutBusiness" paramType="com.mdoa.personnel.bo.ProcessClockForm">
+			</transaction>
+			<transaction name="修改record表leave_flag" classId="com.mdoa.personnel.dao.ClockDao"
+				method="updateRecordForOutBusiness" paramType="com.mdoa.personnel.bo.ProcessClockForm">
+			</transaction>
+		</transactions>
+	</process>
+	<process typeId="003">
+		<name>离职流程</name>
+		<iconUrl>src3</iconUrl>
+		<specialProcess>false</specialProcess>
+		<hasUsers>false</hasUsers>
+		<hasFile>false</hasFile>
+		<formUrl>../../processForm/dimission.html</formUrl>
+		<transactions>
+			<transaction name="添加离职记录" classId="com.mdoa.personnel.dao.DimissionDao"
+				method="insertDimissionRecord" paramType="com.mdoa.user.bo.DimissionForm">
+			</transaction>	
+			<transaction name="离职申请" classId="com.mdoa.user.dao.UserInfoDao"
+				method="dimissionUserInfo" paramType="com.mdoa.user.bo.DimissionForm">
+			</transaction>
+		</transactions>
+	</process>
+	<process typeId="004">
+		<name>福利发放流程</name>
+		<iconUrl></iconUrl>
+		<specialProcess>true</specialProcess>
+		<hasUsers>true</hasUsers>
+		<hasFile>false</hasFile>
+		<formUrl>../../processForm/welfare.html</formUrl>
+		<transactions>
+			<transaction name="插入福利信息" classId="com.mdoa.personnel.dao.ProcessWelfareDao"
+				method="insertProcessWelfare" paramType="com.mdoa.personnel.bo.ProcessWelfareForm">
+			</transaction>
+			<transaction name="插入福利记录" classId="com.mdoa.personnel.dao.ProcessWelfareDao"
+				method="insertProcessWelfareRecords" paramType="com.mdoa.personnel.bo.ProcessWelfareRecordForm">
+			</transaction>
+		</transactions>
+	</process>
+	<process typeId="005">
+		<name>合同交单流程</name>
+		<iconUrl></iconUrl>
+		<specialProcess>true</specialProcess>
+		<hasUsers>false</hasUsers>
+		<hasFile>false</hasFile>
+		<formUrl>../../processForm/presentContract.html</formUrl>
+		<transactions>
+			<transaction name="合同交单" classId="com.mdoa.work.dao.ContractDao"
+				method="presentContract" paramType="com.mdoa.work.bo.ContractForm">
+			</transaction>
+		</transactions>
+	</process>
+	<process typeId="006">
+		<name>公文发放流程</name>
+		<iconUrl></iconUrl>
+		<specialProcess>true</specialProcess>
+		<hasUsers>false</hasUsers>
+		<hasFile>true</hasFile>
+		<formUrl>../../processForm/addDocForm.html</formUrl>
+		<transactions>
+			<transaction name="添加公文" classId="com.mdoa.work.dao.DocumentDao"
+				method="addDocumentDoc" paramType="com.mdoa.work.model.DocumentDoc">
+			</transaction>
+		</transactions>
+	</process>
+	<process typeId="007">
+		<name>补卡流程</name>
+		<iconUrl></iconUrl>
+		<specialProcess>false</specialProcess>
+		<hasUsers>false</hasUsers>
+		<hasFile>false</hasFile>
+		<formUrl>../../processForm/clockReplace.html</formUrl>
+		<transactions>
+			<transaction name="插入补卡记录" classId="com.mdoa.personnel.dao.ClockDao"
+				method="insertClockReplace" paramType="com.mdoa.personnel.bo.ProcessClockForm">
+			</transaction>
+			<transaction name="修改record表" classId="com.mdoa.personnel.dao.ClockDao"
+				method="updateRecordForClockReplace" paramType="com.mdoa.personnel.bo.ProcessClockForm">
+			</transaction>
+		</transactions>
+	</process>
+</processes>                                 
