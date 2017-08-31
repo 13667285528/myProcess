@@ -1,0 +1,481 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sqls instance="com.zhou.myProcess.repository.ProcessExcuter">
+
+	<!-- 获取一个uuid -->
+	<select id="getuuid" resultType="java.lang.String">
+		select UUID() AS uuid
+	</select>
+	
+	<!-- 完成用户任务 -->
+	<update id="excuteUserTask" paramType="com.zhou.myProcess.instance.TaskModel">
+		UPDATE
+			process_task_record a,
+			process_record b
+		SET
+			a.executor_idea = #{executorIdea},
+			a.examine_status = #{examineStatus},
+			a.executor_time = now(),
+			b.update_time = NOW()
+		WHERE
+			a.task_id = #{taskId}
+			AND a.process_record_id = b.process_record_id
+	</update>
+	
+	<!-- 激活一个任务 -->
+	<update id="activitiTask" paramType="com.zhou.myProcess.instance.TaskModel">
+		UPDATE
+			process_task_record
+		SET
+			examine_status = '1'
+		WHERE
+			task_id = #{taskId}
+	</update>
+	
+	<!-- 执行某流程抄送任务 -->
+	<update id="excuteCopyToTask" paramType="com.zhou.myProcess.instance.ProcessModel">
+		UPDATE
+			process_task_record
+		SET
+			examine_status = '1'
+		WHERE
+			task_type = '2'
+		AND process_record_id = #{processRecordId}
+		AND examine_status = '0'
+	</update>
+	
+	<!-- 发起流程 -->
+	<update id="insertProcessRecord" paramType="com.zhou.myProcess.instance.ProcessModel">
+		INSERT INTO process_record (
+			process_record_id,
+			process_id,
+			title,
+			form_url,
+			json_data,
+			user_id,
+			process_type_id,
+			execute_status,
+			create_time
+		) SELECT
+			#{processRecordId} AS process_record_id,
+			process_id AS process_id,
+			#{title} AS title,
+			form_url AS form_url,
+			#{jsonData} AS json_data,
+			user_id AS user_id,
+			process_type_id AS process_type_id,
+			'1' AS execute_status,
+			NOW()
+		FROM
+			process
+		WHERE 
+			process_type_id = #{processTypeId}
+			AND user_id = #{userId};
+	</update>
+	
+	<update id="insertProcessTaskRecord" paramType="com.zhou.myProcess.instance.ProcessModel">		
+		INSERT process_task_record (
+			task_id,
+			process_record_id,
+			executor_id,
+			executor_name,
+			examine_status,
+			task_type,
+			order_number,
+			create_time
+		) SELECT
+			UUID(),
+			#{processRecordId},
+			a.executor_id,
+			a.executor_name,
+			'0',
+			a.task_type,
+			a.order_number,
+			NOW()
+		FROM
+			(
+				(
+					SELECT
+						a.executor_id,
+						a.executor_name,
+						a.task_type,
+						a.order_number
+					FROM
+						process_task a,
+						process b
+					WHERE
+						b.process_type_id = #{processTypeId}
+					AND b.user_id = #{userId}
+					AND (
+						(
+							a.task_type = '1'
+							AND order_number > 1
+						)
+						OR (a.task_type = '2')
+					)
+					AND a.process_id = b.process_id
+				)
+				UNION
+					(
+						SELECT
+							c.executor_id AS executorId,
+							c.executor_name AS executorName,
+							c.task_type AS taskType,
+		
+						IF (
+							c.task_type = 1,
+							@rowNum := @rowNum + 1,
+							NULL
+						) AS orderNumber
+						FROM
+							process_group_task c,
+							process_group_user b,
+							(
+								SELECT
+									(@rowNum := a.maxNumber)
+								FROM
+									(
+										SELECT
+											IFNULL(MAX(a.order_number), 1) AS maxNumber
+										FROM
+											process_task a,
+											process b
+										WHERE
+											b.process_type_id = #{processTypeId}
+										AND b.user_id = #{userId}
+										AND (
+											(
+												a.task_type = '1'
+												AND order_number > 1
+											)
+											OR (a.task_type = '2')
+										)
+										AND a.process_id = b.process_id
+									) a
+							) a
+						WHERE
+							c.process_type_id = #{processTypeId}
+						AND c.group_id = b.group_id
+						AND b.user_id = #{userId}
+						ORDER BY
+							c.group_id,
+							c.order_number
+					)
+			) a
+	</update>
+	
+	<!-- 获取第一个流程 -->
+	<select id="getFirstTask" paramType="com.zhou.myProcess.instance.ProcessModel"
+		resultType="com.zhou.myProcess.instance.TaskModel">
+		SELECT
+			a.executor_id AS executorId,
+			a.executor_name AS executorName,
+			a.task_type AS taskType,
+			a.order_number AS orderNumber,
+			DATE_FORMAT(NOW(),'%y-%m-%d %H:%i:%s') AS createTime
+		FROM
+			process_task a,
+			process b
+		WHERE
+			a.order_number = 1
+			AND a.process_id = b.process_id
+			AND b.process_type_id = #{processTypeId}
+			AND b.user_id = #{userId}
+	</select>
+	
+	<!-- 获取第一个流程 -->
+	<select id="getFirstGroupTask" paramType="com.zhou.myProcess.instance.ProcessModel"
+		resultType="com.zhou.myProcess.instance.TaskModel">
+		SELECT
+			c.task_id AS taskId,
+			c.task_type AS taskType,
+			c.executor_id As executorId,
+			c.executor_name AS executorName,
+			c.group_id AS groupId,
+			c.process_type_id AS procesTypeId,
+			DATE_FORMAT(c.create_time,'%Y-%m-%d %h:%i:%s') AS createTime
+		FROM
+			process_group_task c,
+			process_group_user b
+		WHERE
+			c.process_type_id = #{processTypeId}
+			AND c.group_id = b.group_id
+			AND c.task_type = '2'
+			AND b.user_id = #{userId}
+		ORDER BY c.group_id , c.order_number
+		LIMIT 0,1
+	</select>
+	
+	<!-- 添加第一个流程的信息 -->
+	<update id="addFirstTask" paramType="com.zhou.myProcess.instance.TaskModel">
+		INSERT process_task_record (
+			task_id,
+			process_record_id,
+			executor_id,
+			executor_name,
+			examine_status,
+			task_type,
+			order_number,
+			create_time
+		)
+		VALUES
+		(
+			#{taskId},
+			#{processRecordId},
+			#{executorId},
+			#{executorName},
+			'1',
+			'1',
+			#{orderNumber},
+			STR_TO_DATE(#{createTime},'%y-%m-%d %H:%i:%s')
+		)
+	</update>
+	
+	<!-- 修改流程状态 -->
+	<update id="updateProcessStatus" paramType="com.zhou.myProcess.instance.ProcessModel">
+		UPDATE
+			process_record
+		SET
+			execute_status = #{executeStatus}
+		WHERE
+			process_record_id = #{processRecordId}
+	</update>
+	
+	<!-- 将某个流程的活动设置为睡眠状态 -->
+	<update id="sleepTask" paramType="com.zhou.myProcess.instance.ProcessModel">
+		UPDATE
+			process_task_record
+		SET
+			examine_status = '0'
+		WHERE
+			process_record_id = #{processRecordId}
+			AND examine_status = '1'
+	</update>
+	
+	<!-- 查询下一个任务 -->
+	<select id="selectNextTask" paramType="com.zhou.myProcess.instance.TaskModel"
+	 	resultType="com.zhou.myProcess.instance.TaskModel">
+		SELECT
+			a.task_id AS taskId,
+			a.process_record_id AS processRecordId,
+			a.executor_id AS executorId,
+			a.executor_name AS executorName,
+			a.task_type AS taskType,
+			a.order_number AS orderNumber
+		FROM
+			process_task_record a,
+			process_task_record b
+		WHERE
+			a.process_record_id = b.process_record_id
+			AND a.order_number = b.order_number + 1
+			AND b.task_id = #{taskId};
+	</select>
+	
+	<!-- 根据任务Id查询该任务所属的流程信息 -->
+	<select id="selectProcessByTaskId" paramType="com.zhou.myProcess.instance.TaskModel"
+		 resultType="com.zhou.myProcess.instance.ProcessModel">
+		SELECT
+			a.process_record_id AS processRecordId,
+			a.process_id AS processId,
+			a.form_url AS formUrl,
+			a.json_data AS jsonData,
+			a.user_id AS userId,
+			c.user_name AS userName,
+			a.process_type_id AS processTypeId,
+			a.execute_status AS executeStatus,
+			DATE_FORMAT(a.create_time,'%y-%m-%d %H:%i:%s') AS createTime,
+			DATE_FORMAT(a.update_time,'%y-%m-%d %H:%i:%s') AS updateTime
+		FROM
+			process_record a
+		RIGHT JOIN (
+			SELECT
+				process_record_id
+			FROM
+				process_task_record
+			WHERE
+				task_id = #{taskId}
+		) b ON (
+			a.process_record_id = b.process_record_id
+		)
+		LEFT JOIN 
+			user_info c
+		ON (c.user_id = a.user_id)
+	</select>
+	
+	<!-- 查询该用户是否创建了这个类别的流程信息 -->
+	<select id="checkUserProcess" resultType="com.zhou.myProcess.instance.ProcessModel" 
+		paramType="com.zhou.myProcess.instance.ProcessModel">
+		SELECT
+			process_id AS processId
+		FROM
+			process
+		WHERE
+			user_id = #{userId}
+			AND process_type_id = #{processTypeId}
+	</select>
+	
+	<!-- 为该用户添加主流程信息 -->
+	<update id="addMainProcess" paramType="com.zhou.myProcess.instance.ProcessModel">
+		INSERT INTO process (
+			process_id,
+			process_type_id,
+			user_id,
+			create_time,
+			form_url
+		)VALUE(
+			UUID(),
+			#{processTypeId}, 
+			#{userId},
+			now(),
+			#{formUrl}
+		)
+	</update>
+	
+	<!-- 为一个流程添加一个流程节点，直接将流程节点中的所有信息添加进来 -->
+	<update id="addCopyToTask" paramType="com.zhou.myProcess.instance.TaskModel">
+		INSERT INTO process_task (
+			task_id,
+			process_id,
+			executor_id,
+			executor_name,
+			task_type,
+			create_time
+		)
+		VALUE
+		(
+			#{taskId},
+			#{processId},
+			#{executorId},
+			#{executorName},
+			#{taskType},
+			NOW()
+		)
+	</update>
+	
+	<!-- 为一个流程添加一个流程节点，直接将流程节点中的所有信息添加进来 -->
+	<update id="addTask" paramType="com.zhou.myProcess.instance.TaskModel">
+		INSERT INTO process_task (
+			task_id,
+			process_id,
+			executor_id,
+			executor_name,
+			task_type,
+			create_time,
+			order_number
+		)
+		SELECT
+			#{taskId},
+			#{processId},
+			#{executorId},
+			#{executorName},
+			#{taskType},
+			NOW(),
+			IFNULL(MAX(order_number),0) + 1
+		FROM
+			process_task
+		WHERE
+			process_id = #{processId}
+			AND task_type = '1'
+	</update>
+	
+	<!-- 根据TaskId获取相应的Task信息 -->
+	<select id="getTaskByTaskId" paramType="com.zhou.myProcess.instance.TaskModel"
+		resultType="com.zhou.myProcess.instance.TaskModel">
+		SELECT
+			task_id AS taskId,
+			process_id AS processId,
+			executor_id AS executorId,
+			executor_name AS executorName,
+			task_type AS taskType,
+			order_number AS orderNumber
+		FROM
+			process_task
+		WHERE
+			task_id = #{taskId}
+	</select>
+	
+	<select id="getTaskRecordByTaskId" paramType="com.zhou.myProcess.instance.TaskModel"
+		resultType="com.zhou.myProcess.instance.TaskModel">
+		SELECT
+			task_id AS taskId,
+			process_record_id AS processRecordId,
+			examine_status AS examineStatus,
+			executor_id AS executorId,
+			executor_name AS executorName,
+			executor_idea AS executorIdea,
+			task_type AS taskType,
+			order_number AS orderNumber,
+			DATE_FORMAT(executor_time,'%y-%m-%d %H:%i:%s') AS executorTime,
+			DATE_FORMAT(create_time,'%y-%m-%d %H:%i:%s') AS createTime,
+			DATE_FORMAT(update_time,'%y-%m-%d %H:%i:%s') AS updateTime
+		FROM
+			process_task_record
+		WHERE
+			task_id = #{taskId}
+	</select>
+	
+	<!-- 更新后续的任务的OrderNumber -->
+	<update id="updateAfterTask" paramType="com.zhou.myProcess.instance.TaskModel">
+		UPDATE
+			process_task
+		SET
+			order_number = order_number - 1
+		WHERE
+			order_number &gt; #{orderNumber}
+			AND process_id = #{processId}
+	</update>
+	
+	<!-- 添加下一个节点的Id -->
+	<update id="addNextTask" paramType="com.zhou.myProcess.instance.TaskModel">
+		UPDATE
+			process_task a,
+			process b
+		SET
+			a.next_task_id = #{taskId}
+		WHERE
+			a.process_id = b.process_id
+			AND b.process_id = #{processId}
+			AND a.next_task_id IS NULL
+	</update>
+	
+	<!-- 删除流程任务节点 -->
+	<update id="deleteTask" paramType="com.zhou.myProcess.instance.TaskModel">
+		DELETE
+		FROM
+			process_task
+		WHERE
+			task_id = #{taskId}
+	</update>
+	
+	<select id="getProcessRecordByProcessId" paramType="com.zhou.myProcess.instance.ProcessModel" 
+		resultType="com.zhou.myProcess.instance.ProcessModel">
+		SELECT
+			process_record_id AS processRecordId,
+			process_id AS processId,
+			title AS title,
+			form_url AS formUrl,
+			json_data AS jsonData,
+			user_id AS userId,
+			process_type_id AS processTypeId,
+			execute_status AS executeStatus,
+			DATE_FORMAT(create_time,'%y-%m-%d %H:%i:%s') AS createTime,
+			DATE_FORMAT(update_time,'%y-%m-%d %H:%i:%s') AS updateTime
+		FROM
+			process_record
+		WHERE
+			process_record_id = #{processRecordId}
+	</select>
+	
+	<select id="getCopyToMessage" paramType="com.zhou.myProcess.instance.ProcessModel" 
+		resultType="com.zhou.myProcess.instance.TaskModel">
+		SELECT
+			a.task_id AS taskId,
+			a.process_record_id AS processId,
+			a.executor_id AS executorId,
+			a.executor_name AS executorName,
+			a.task_type AS taskType
+		FROM
+			process_task_record a
+		WHERE
+			a.task_type = '2' AND a.process_record_id = #{processRecordId}
+	</select>
+</sqls>
