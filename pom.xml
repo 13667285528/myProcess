@@ -87,6 +87,7 @@
             <url>http://maven.aliyun.com/nexus/content/groups/public</url>
         </repository>
     </repositories>
+
     <!-- maven插件下载仓库 -->
     <pluginRepositories>
         <pluginRepository>
