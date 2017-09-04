@@ -87,148 +87,113 @@
 			#{processRecordId},
 			a.executor_id,
 			a.executor_name,
-			'0',
+			IF(a.order_number = 1 , '1', '0'),
 			a.task_type,
 			a.order_number,
 			NOW()
-		FROM
-			(
+		FROM(
+			SELECT
+				executor_id,
+				executor_name,
+				task_type,
+				MIN(order_number),
+				IF (
+						task_type = 1,
+						@rowNum2 := @rowNum2 + 1,
+						NULL
+					) AS order_number
+			FROM
 				(
-					SELECT
-						a.executor_id,
-						a.executor_name,
-						a.task_type,
-						a.order_number
-					FROM
-						process_task a,
-						process b
-					WHERE
-						b.process_type_id = #{processTypeId}
-					AND b.user_id = #{userId}
-					AND (
-						(
-							a.task_type = '1'
-							AND order_number > 1
-						)
-						OR (a.task_type = '2')
-					)
-					AND a.process_id = b.process_id
-				)
-				UNION
 					(
 						SELECT
-							c.executor_id AS executorId,
-							c.executor_name AS executorName,
-							c.task_type AS taskType,
-		
-						IF (
-							c.task_type = 1,
-							@rowNum := @rowNum + 1,
-							NULL
-						) AS orderNumber
+							a.executor_id,
+							a.executor_name,
+							a.task_type,
+							a.order_number
 						FROM
-							process_group_task c,
-							process_group_user b,
-							(
-								SELECT
-									(@rowNum := a.maxNumber)
-								FROM
-									(
-										SELECT
-											IFNULL(MAX(a.order_number), 1) AS maxNumber
-										FROM
-											process_task a,
-											process b
-										WHERE
-											b.process_type_id = #{processTypeId}
-										AND b.user_id = #{userId}
-										AND (
-											(
-												a.task_type = '1'
-												AND order_number > 1
-											)
-											OR (a.task_type = '2')
-										)
-										AND a.process_id = b.process_id
-									) a
-							) a
+							process_task a,
+							process b
 						WHERE
-							c.process_type_id = #{processTypeId}
-						AND c.group_id = b.group_id
+							b.process_type_id = #{processTypeId}
 						AND b.user_id = #{userId}
-						ORDER BY
-							c.group_id,
-							c.order_number
+						AND (
+							(
+								a.task_type = '1'
+							)
+							OR (a.task_type = '2')
+						)
+						AND a.process_id = b.process_id
 					)
-			) a
+					UNION
+						(
+							SELECT
+								c.executor_id AS executorId,
+								c.executor_name AS executorName,
+								c.task_type AS taskType,
+							IF (
+								c.task_type = 1,
+								@rowNum := @rowNum + 1,
+								NULL
+							) AS order_number
+							FROM
+								process_group_task c,
+								process_group_user b,
+								(
+									SELECT
+										(@rowNum := a.maxNumber)
+									FROM
+										(
+											SELECT
+												IFNULL(MAX(a.order_number), 0) AS maxNumber
+											FROM
+												process_task a,
+												process b
+											WHERE
+												b.process_type_id = #{processTypeId}
+											AND b.user_id = #{userId}
+											AND (
+												(
+													a.task_type = '1'
+												)
+												OR (a.task_type = '2')
+											)
+											AND a.process_id = b.process_id
+										) a
+								) a
+							WHERE
+								c.process_type_id = #{processTypeId}
+							AND c.group_id = b.group_id
+							AND b.user_id = #{userId}
+							ORDER BY
+								c.group_id,
+								c.order_number
+						)
+				) a,
+			(SELECT @rowNum2 := 0) b
+			GROUP BY
+				a.executor_id, a.task_type
+		) a
+
 	</update>
 	
 	<!-- 获取第一个流程 -->
 	<select id="getFirstTask" paramType="com.zhou.myProcess.instance.ProcessModel"
 		resultType="com.zhou.myProcess.instance.TaskModel">
 		SELECT
-			a.executor_id AS executorId,
-			a.executor_name AS executorName,
-			a.task_type AS taskType,
-			a.order_number AS orderNumber,
-			DATE_FORMAT(NOW(),'%y-%m-%d %H:%i:%s') AS createTime
+			task_id AS taskId,
+			process_record_id AS processRecordId,
+			examine_status AS examineStatus,
+			executor_id AS executorId,
+			executor_name AS executorName,
+			task_type AS taskType,
+			order_number AS orderNumber
 		FROM
-			process_task a,
-			process b
+			process_task_record
 		WHERE
-			a.order_number = 1
-			AND a.process_id = b.process_id
-			AND b.process_type_id = #{processTypeId}
-			AND b.user_id = #{userId}
+			process_record_id = #{processRecordId}
+			AND order_number = 1
+			AND task_type = '1'
 	</select>
-	
-	<!-- 获取第一个流程 -->
-	<select id="getFirstGroupTask" paramType="com.zhou.myProcess.instance.ProcessModel"
-		resultType="com.zhou.myProcess.instance.TaskModel">
-		SELECT
-			c.task_id AS taskId,
-			c.task_type AS taskType,
-			c.executor_id As executorId,
-			c.executor_name AS executorName,
-			c.group_id AS groupId,
-			c.process_type_id AS procesTypeId,
-			DATE_FORMAT(c.create_time,'%Y-%m-%d %h:%i:%s') AS createTime
-		FROM
-			process_group_task c,
-			process_group_user b
-		WHERE
-			c.process_type_id = #{processTypeId}
-			AND c.group_id = b.group_id
-			AND c.task_type = '2'
-			AND b.user_id = #{userId}
-		ORDER BY c.group_id , c.order_number
-		LIMIT 0,1
-	</select>
-	
-	<!-- 添加第一个流程的信息 -->
-	<update id="addFirstTask" paramType="com.zhou.myProcess.instance.TaskModel">
-		INSERT process_task_record (
-			task_id,
-			process_record_id,
-			executor_id,
-			executor_name,
-			examine_status,
-			task_type,
-			order_number,
-			create_time
-		)
-		VALUES
-		(
-			#{taskId},
-			#{processRecordId},
-			#{executorId},
-			#{executorName},
-			'1',
-			'1',
-			#{orderNumber},
-			STR_TO_DATE(#{createTime},'%y-%m-%d %H:%i:%s')
-		)
-	</update>
 	
 	<!-- 修改流程状态 -->
 	<update id="updateProcessStatus" paramType="com.zhou.myProcess.instance.ProcessModel">

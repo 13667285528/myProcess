@@ -45,16 +45,6 @@ public interface ProcessExcuter {
     TaskModel getFirstTask(ProcessModel processModel);
     
     /**
-     * 获取第一个流程的信息
-     */
-    TaskModel getFirstGroupTask(ProcessModel processModel);
-    
-    /**
-     * 添加第一个流程
-     */
-    boolean addFirstTask(TaskModel firstTask);
-    
-    /**
      * 修改流程状态
      */
     boolean updateProcessStatus(ProcessModel processModel);

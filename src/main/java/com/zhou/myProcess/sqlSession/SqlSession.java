@@ -104,7 +104,6 @@ public class SqlSession implements MethodInterceptor {
         className = className.substring(0,className.indexOf("$"));
         SqlMapper sqlMapper =  this.sqlMapperMap.get(Class.forName(className));
         SqlSescribe sqlSescribe = sqlMapper.getMap().get(method.getName());
-        this.checkParamAndResult(method, sqlSescribe);
         if(this.filters != null){
             for(SqlFilter filter : this.filters){
                 if(Util.isNotEmpty(objects)){
@@ -119,31 +118,6 @@ public class SqlSession implements MethodInterceptor {
             }
         }
         return result;
-    }
-
-    /**
-     * 验证 这个方法的传入参数与返回类型是否符合Sql描述
-     * @param method
-     * @param sqlSescribe
-     */
-    private void checkParamAndResult(Method method, SqlSescribe sqlSescribe) throws IllegalityParamException, IllegalityResultException {
-        if(method.getParameterTypes().length > 1 )
-            throw new IllegalityParamException("方法"+method.getName()+"中最多只可以传入一个参数");
-        if(method.getParameterTypes().length > 0 && !method.getParameterTypes()[0].equals(sqlSescribe.getParamType()))
-            throw new IllegalityParamException("方法"+method.getName()+"与paramType："+sqlSescribe.getParamType()+"不符");
-        if(sqlSescribe.getType().equals("select")){
-            if(method.getReturnType().isAssignableFrom(List.class)){
-                Type returnType = method.getGenericReturnType();
-                if(returnType instanceof ParameterizedType){
-                    Type[] typesto = ((ParameterizedType) returnType).getActualTypeArguments();// 强制转型为带参数的泛型类型，
-                    if(typesto.length > 0 && !typesto[0].equals(sqlSescribe.getResultType()))
-                        throw new IllegalityResultException("方法"+method.getName()+"具有错误的返回类型："+typesto[0].getTypeName());
-                }
-            }else{
-                if(sqlSescribe.getResultType() != null && !sqlSescribe.getResultType().equals(method.getReturnType()))
-                    throw new IllegalityResultException("方法"+method.getName()+"没有使用指定的返回值类型");
-            }
-        }
     }
 
     /**
