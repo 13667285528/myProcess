@@ -76,9 +76,23 @@
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 	</checkSql>
 
+	<checkSql table="process_task">
+		CREATE TABLE `process_task` (
+		`task_id` char(36) NOT NULL,
+		`process_id` char(36) DEFAULT NULL COMMENT '流程ID',
+		`executor_id` char(36) DEFAULT NULL COMMENT '执行人Id',
+		`executor_name` varchar(15) DEFAULT NULL COMMENT '执行人名称',
+		`task_type` char(1) DEFAULT NULL COMMENT '任务类型，1审批，2抄送',
+		`order_number` int(11) DEFAULT NULL COMMENT '执行序号',
+		`create_time` datetime DEFAULT NULL,
+		`update_time` datetime DEFAULT NULL,
+		PRIMARY KEY (`user_task_id`)
+		) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+	</checkSql>
+
 	<checkSql table="process_task_record">
 		CREATE TABLE `process_task_record` (
-		`user_task_id` char(36) NOT NULL,
+		`task_id` char(36) NOT NULL,
 		`process_record_id` char(36) DEFAULT NULL COMMENT '流程ID',
 		`examine_status` char(1) DEFAULT NULL COMMENT '0睡眠 1 激活（待审） 2 通过 3驳回',
 		`executor_id` char(36) DEFAULT NULL COMMENT '执行人Id',
