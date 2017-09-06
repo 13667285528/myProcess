@@ -86,7 +86,7 @@
 		`order_number` int(11) DEFAULT NULL COMMENT '执行序号',
 		`create_time` datetime DEFAULT NULL,
 		`update_time` datetime DEFAULT NULL,
-		PRIMARY KEY (`user_task_id`)
+		PRIMARY KEY (`task_id`)
 		) ENGINE=MyISAM DEFAULT CHARSET=utf8;
 	</checkSql>
 
@@ -103,7 +103,7 @@
 		`executor_time` datetime DEFAULT NULL COMMENT '执行时间',
 		`create_time` datetime DEFAULT NULL,
 		`update_time` datetime DEFAULT NULL,
-		PRIMARY KEY (`user_task_id`)
+		PRIMARY KEY (`task_id`)
 		) ENGINE=MyISAM DEFAULT CHARSET=utf8;
 	</checkSql>
 </sqls>

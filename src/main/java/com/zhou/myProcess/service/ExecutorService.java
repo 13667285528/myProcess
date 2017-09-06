@@ -78,6 +78,9 @@ public class ExecutorService {
 			processExcuter.insertProcessTaskRecord(processModel);
 			//激活第一个任务
 			TaskModel firstTask = processExcuter.getFirstTask(processModel);
+			if(firstTask == null){
+				firstTask = processExcuter.getFirstGroupTask(processModel);
+			}
 			//填充流程中的信息
 			Process process = this.processes.get(processModel.getProcessTypeId());
 			processModel.setFormUrl(process.getFormUrl());
